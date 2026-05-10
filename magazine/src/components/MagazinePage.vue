@@ -26,9 +26,15 @@ function closeLightbox() { lightboxSrc.value = '' }
         </div>
       </div>
 
-      <!-- 地址 -->
+      <!-- 地址（点击跳转高德地图搜索） -->
       <div class="flex-shrink-0 text-center mt-1">
-        <span style="font-size:clamp(0.45rem,0.7vw,0.55rem);color:#6B6B6B;">📍 {{ location.address }}</span>
+        <a
+          :href="`https://uri.amap.com/search?keyword=${encodeURIComponent(location.mapKeyword)}`"
+          target="_blank"
+          rel="noopener"
+          style="font-size:clamp(0.45rem,0.7vw,0.55rem);color:#6B6B6B;text-decoration:none;cursor:pointer;transition:color 0.2s;"
+          class="addr-link"
+        >📍 {{ location.address }}</a>
       </div>
 
       <!-- 照片缩略图 -->
@@ -91,12 +97,11 @@ function closeLightbox() { lightboxSrc.value = '' }
   border-radius: 3px;
   background: rgba(245,237,227,0.3);
   cursor: pointer;
-  min-height: clamp(18px, 3.2%, 28px);
+  aspect-ratio: 4 / 3;
 }
 .thumb-first {
   grid-column: span 2;
   grid-row: span 2;
-  min-height: clamp(36px, 6.5%, 52px);
 }
 .thumb-item img {
   width: 100%;
@@ -140,4 +145,5 @@ function closeLightbox() { lightboxSrc.value = '' }
   transition: background 0.3s;
 }
 .lightbox-close:hover { background: rgba(255,255,255,0.4); }
+.addr-link:hover { color: #4A90D9 !important; }
 </style>

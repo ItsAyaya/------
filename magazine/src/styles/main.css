@@ -32,7 +32,14 @@ body {
 
 /* ======== A4 Page Card ======== */
 .page-card {
-  /* 尺寸在 App.vue scoped 中定义 */
+  /* 尺寸在 App.vue scoped 中定义，此处补齐导出时必需的弹性布局 */
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: #FAFAF7;
+  overflow: hidden;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.3);
   flex-shrink: 0;
 }
 

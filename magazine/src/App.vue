@@ -75,12 +75,14 @@ defineExpose({ handleExport })
       </Transition>
     </div>
 
-    <!-- PDF 导出时隐藏渲染所有页 -->
-    <div v-if="exportMode" style="position:absolute;left:-9999px;top:0;width:1060px;display:flex;flex-wrap:wrap;gap:12px;padding:12px;">
-      <CoverPage />
-      <TocPage :locations="locations" />
-      <MagazinePage v-for="loc in locations" :key="'exp-'+loc.id" :location="loc" :page-num="loc.id" />
-      <BackCover />
+    <!-- PDF 导出时隐藏渲染所有页（确保与可见页同宽高比） -->
+    <div v-if="exportMode" id="pdf-export-container" style="position:absolute;left:-9999px;top:0;display:flex;flex-wrap:wrap;gap:12px;padding:12px;">
+      <div style="width:500px;aspect-ratio:1/1.414;flex-shrink:0;display:flex;"><CoverPage /></div>
+      <div style="width:500px;aspect-ratio:1/1.414;flex-shrink:0;display:flex;"><TocPage :locations="locations" /></div>
+      <div v-for="loc in locations" :key="'exp-'+loc.id" style="width:500px;aspect-ratio:1/1.414;flex-shrink:0;display:flex;">
+        <MagazinePage :location="loc" :page-num="loc.id" />
+      </div>
+      <div style="width:500px;aspect-ratio:1/1.414;flex-shrink:0;display:flex;"><BackCover /></div>
     </div>
 
     <!-- 翻页导航 -->
