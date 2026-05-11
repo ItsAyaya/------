@@ -1,13 +1,14 @@
 import type { Location } from '@/types'
+const ASSETS_PATH = import.meta.env.BASE_URL
 
 function photosFrom(folder: number, count: number, captions?: string[]): Location['photos'] {
   return Array.from({ length: count }, (_, i) => ({
-    src: `/HITWITH-GUIDE/photos/${folder}/${i + 1}.jpeg`,
+    src: `${ASSETS_PATH}photos/${folder}/${i + 1}.jpeg`,
     caption: captions?.[i],
   }))
 }
 function getAvatar(name: string) {
-  return `/HITWITH-GUIDE/avatars/${name}.jpg`
+  return `${ASSETS_PATH}avatars/${name}.jpg`
 }
 /**
  * 全部 15 个地点 — 每个地点一位评论者
