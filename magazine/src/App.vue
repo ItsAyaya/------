@@ -1,27 +1,89 @@
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue'
 import { locations } from '@/data/locations'
-import CoverPage from './components/CoverPage.vue'
-import TocPage from './components/TocPage.vue'
-import MagazinePage from './components/MagazinePage.vue'
-import BackCover from './components/BackCover.vue'
-import PdfExport from './components/PdfExport.vue'
 import { exportAllPages } from '@/utils/pdfExport'
 
+const CoverPage = defineAsyncComponent(() => import('./components/CoverPage.vue'))
+const TocPage = defineAsyncComponent(() => import('./components/TocPage.vue'))
+const MagazinePage = defineAsyncComponent(() => import('./components/MagazinePage.vue'))
+const BackCover = defineAsyncComponent(() => import('./components/BackCover.vue'))
+const PdfExport = defineAsyncComponent(() => import('./components/PdfExport.vue'))
+
+const isMobile = ref(false)
+let mql: MediaQueryList | null = null
+const handleResize = (e: MediaQueryListEvent | MediaQueryList) => {
+  isMobile.value = e.matches
+}
+
+onMounted(() => {
+  mql = window.matchMedia('(max-width: 768px)')
+  handleResize(mql)
+  mql.addEventListener('change', handleResize)
+})
+
+onUnmounted(() => {
+  if (mql) mql.removeEventListener('change', handleResize)
+})
+
+const allPages = computed(() => {
+  const arr: any[] = []
+  arr.push({ id: 'cover', type: 'cover' })
+  arr.push({ id: 'toc', type: 'toc' })
+  locations.forEach((loc) => {
+    arr.push({ id: `loc-${loc.id}`, type: 'location', loc: loc })
+  })
+  arr.push({ id: 'back', type: 'back' })
+  return arr
+})
+
+const spreadLayout = computed(() => {
+  if (isMobile.value) {
+    return allPages.value.map(p => [p])
+  } else {
+    const spreads = []
+    spreads.push([allPages.value[0]])
+    for (let i = 1; i < allPages.value.length; i += 2) {
+      const chunk = [allPages.value[i]]
+      if (allPages.value[i+1]) {
+        chunk.push(allPages.value[i+1])
+      }
+      spreads.push(chunk)
+    }
+    return spreads
+  }
+})
+
 const currentSpread = ref(0)
+const totalSpreads = computed(() => spreadLayout.value.length)
 
-const totalSpreads = computed(() => 2 + Math.ceil((locations.length - 1) / 2) + 1)
+// Ensure currentSpread stays within bounds on resize
+watch(totalSpreads, (newTotal) => {
+  if (currentSpread.value >= newTotal) {
+    currentSpread.value = Math.max(0, newTotal - 1)
+  }
+})
 
-function nextSpread() { if (currentSpread.value < totalSpreads.value - 1) currentSpread.value++ }
-function prevSpread() { if (currentSpread.value > 0) currentSpread.value-- }
+function nextSpread() {
+  if (currentSpread.value < totalSpreads.value - 1) currentSpread.value++
+}
+function prevSpread() {
+  if (currentSpread.value > 0) currentSpread.value--
+}
 
 const pageRange = computed(() => {
-  const s = currentSpread.value
-  if (s === 0) return '封面'
-  if (s >= totalSpreads.value - 1) return '尾页'
-  const start = (s - 1) * 2 + 1
-  const end = Math.min(start + 1, locations.length + 1)
-  return `${start} – ${end}`
+  const currentItems = spreadLayout.value[currentSpread.value] || []
+  if (currentItems.length === 0) return ''
+  
+  function getLabel(item: any) {
+    if (item.type === 'cover') return '封面'
+    if (item.type === 'back') return '尾页'
+    if (item.type === 'toc') return '目录'
+    if (item.type === 'location') return item.loc.id
+    return ''
+  }
+  
+  if (currentItems.length === 1) return String(getLabel(currentItems[0]))
+  return `${getLabel(currentItems[0])} – ${getLabel(currentItems[1])}`
 })
 
 // PDF 导出：临时渲染所有页
@@ -53,24 +115,15 @@ defineExpose({ handleExport })
 
     <!-- 杂志视口 -->
     <div class="magazine-viewport">
-      <!-- 正常模式：仅显示当前跨页 -->
+      <!-- 正常模式：动态跨页 -->
       <Transition name="flip" mode="out-in">
-        <div v-if="currentSpread === 0" key="cover" class="spread-row spread-solo">
-          <CoverPage />
-        </div>
-        <div v-else-if="currentSpread === 1" key="spread1" class="spread-row">
-          <TocPage :locations="locations" />
-          <MagazinePage :location="locations[0]" :page-num="1" />
-        </div>
-        <div v-else-if="currentSpread < totalSpreads - 1" :key="'spread'+currentSpread" class="spread-row">
-          <MagazinePage
-            v-for="loc in locations.slice((currentSpread-2)*2+1, (currentSpread-2)*2+3)"
-            :key="loc.id" :location="loc" :page-num="loc.id"
-          />
-        </div>
-        <div v-else key="back" class="spread-row spread-solo">
-          <MagazinePage :location="locations[locations.length-1]" :page-num="locations.length" />
-          <BackCover />
+        <div :key="'spread-' + currentSpread" class="spread-row" :class="{'spread-solo': spreadLayout[currentSpread]?.length === 1}">
+          <template v-for="page in spreadLayout[currentSpread]" :key="page.id">
+            <CoverPage v-if="page.type === 'cover'" />
+            <TocPage v-else-if="page.type === 'toc'" :locations="locations" />
+            <MagazinePage v-else-if="page.type === 'location'" :location="page.loc" :page-num="page.loc.id" />
+            <BackCover v-else-if="page.type === 'back'" />
+          </template>
         </div>
       </Transition>
     </div>
@@ -111,6 +164,7 @@ defineExpose({ handleExport })
   justify-content: center;
   width: 100%;
   padding: 20px 12px 0;
+  perspective: 1200px;
 }
 
 .spread-row {
@@ -136,18 +190,25 @@ defineExpose({ handleExport })
   flex-shrink: 0;
 }
 
+@media (max-width: 768px) {
+  .spread-row .page-card {
+    width: clamp(280px, 90vw, 500px);
+  }
+}
+
 /* 翻页过渡动画 */
 .flip-enter-active,
 .flip-leave-active {
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, opacity;
 }
 .flip-enter-from {
   opacity: 0;
-  transform: translateX(40px);
+  transform: translateX(60px) scale(0.96) translateZ(-40px);
 }
 .flip-leave-to {
   opacity: 0;
-  transform: translateX(-40px);
+  transform: translateX(-60px) scale(0.96) translateZ(-40px);
 }
 
 /* 导航栏 */

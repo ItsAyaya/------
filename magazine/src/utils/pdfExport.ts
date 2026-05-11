@@ -1,8 +1,13 @@
 /** PDF 导出 — 将导出容器内所有 .page-card 合并为一个 A4 PDF */
-import html2canvas from 'html2canvas'
-import { jsPDF } from 'jspdf'
 
 export async function exportAllPages(filename = '梦环翠海指南.pdf') {
+  const [html2canvasModule, jsPDFModule] = await Promise.all([
+    import('html2canvas'),
+    import('jspdf')
+  ]);
+  const html2canvas = html2canvasModule.default;
+  const { jsPDF } = jsPDFModule;
+
   const container = document.getElementById('pdf-export-container')
   if (!container) {
     console.warn('没有找到导出容器')
